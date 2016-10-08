@@ -2,50 +2,44 @@ FROM phusion/baseimage:latest
 MAINTAINER Br4zzor <br4zzor@protonmail.com>
 
 
-#
-# Follow the server installation parameters specified on the OSSEC website for
-# ubuntu installations
-#
-RUN apt-key adv --fetch-keys http://ossec.wazuh.com/repos/apt/conf/ossec-key.gpg.key &&\
-  echo "deb http://ossec.wazuh.com/repos/apt/ubuntu trusty main" >> /etc/apt/sources.list &&\
-  apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -yf install expect ossec-hids
+ENV REFRESHED_AT 2015-6-8
 
-#
-# Add a default agent due to this bug
-# https://groups.google.com/forum/#!topic/ossec-list/qeC_h3EZCxQ
-#
-ADD init_agent /var/ossec/init_agent
-RUN service ossec restart &&\
-  /var/ossec/bin/manage_agents -f /init_agent &&\
-  rm /var/ossec/init_agent &&\
-  service ossec stop &&\
-  echo -n "" /var/ossec/logs/ossec.log
+# Update repositories, install git, gcc, make and supervisor and 
+# clone down the latest OSSEC build from the official Github repo.
 
-#
-# Initialize the data volume configuration
-#
-ADD data_dirs.env /data_dirs.env
-ADD init.bash /init.bash
-# Sync calls are due to https://github.com/docker/docker/issues/9547
-RUN chmod 755 /init.bash &&\
-  sync && /init.bash &&\
-  sync && rm /init.bash
+RUN apt-get update && apt-get install -y git gcc make supervisor
 
-#
-# Add the bootstrap script
-#
-ADD env.bash /env.bash
-RUN chmod 755 /env.bash
+WORKDIR /tmp/
 
-#
-# Specify the data volume 
-#
-VOLUME ["/var/ossec/data"]
+RUN git clone https://github.com/ossec/ossec-hids.git
 
-# Expose ports for sharing
-EXPOSE 1514/udp 1515/tcp
+# Copy the unattended installation config file from the build context
+# and put it where the OSSEC install script can find it. Then copy the 
+# supervisord.conf file that let's ossec-control run as a foreground 
+# process. Then run the install script, which will turn on just about 
+# everything except e-mail notifications
 
-#
-# Define default command.
-#
-ENTRYPOINT ["/env.bash"]
+COPY preloaded-vars.conf /tmp/ossec-hids/etc/preloaded-vars.conf
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+RUN ./ossec-hids/install.sh
+
+# Clean-up by uninstalling git, gcc and make - since we won't need them
+# anymore. Then clean up the OSSEC install files
+
+RUN apt-get purge -y --auto-remove git gcc make
+RUN rm -rf /tmp/ossec-hids/
+
+# Set persistent volumes for the /etc and /log folders so that the logs
+# and agent keys survive a start/stop and expose ports for the 
+# server/client ommunication (1514) and the syslog transport (514)
+
+ONBUILD VOLUME /var/ossec/etc
+ONBUILD VOLUME /var/ossec/logs
+
+EXPOSE 1514
+EXPOSE 514
+
+# Run supervisord so that the container will stay alive
+
+ENTRYPOINT ["/usr/bin/supervisord"]
