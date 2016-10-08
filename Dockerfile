@@ -1,4 +1,4 @@
-FROM phusion/baseimage:0.9.15
+FROM phusion/baseimage-docker
 MAINTAINER Br4zzor <br4zzor@protonmail.com>
 
 
