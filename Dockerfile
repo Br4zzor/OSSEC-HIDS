@@ -1,4 +1,4 @@
-FROM phusion/baseimage
+FROM phusion/baseimage:latest
 MAINTAINER Br4zzor <br4zzor@protonmail.com>
 
 
