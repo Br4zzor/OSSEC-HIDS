@@ -1,4 +1,4 @@
-FROM phusion/baseimage:0.9.18
+FROM phusion/baseimage:latest
 MAINTAINER Br4zzor <br4zzor@protonmail.com>
 
 
@@ -34,7 +34,7 @@ RUN chmod 755 /init.bash &&\
 #
 # Add the bootstrap script
 #
-ADD run.bash /env.bash
+ADD env.bash /env.bash
 RUN chmod 755 /env.bash
 
 #
@@ -48,4 +48,4 @@ EXPOSE 1514/udp 1515/tcp
 #
 # Define default command.
 #
-ENTRYPOINT ["/run.bash"]
+ENTRYPOINT ["/env.bash"]
